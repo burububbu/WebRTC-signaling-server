@@ -53,49 +53,59 @@ function messageHandler(connection, msg) {
   switch (data.type) {
     // caller
     case "startCall": {
-      do {
-        var generatedCode = generateCode();
-      } while (calls.has(generatedCode));
+      do var generatedCode = generateCode();
+      while (calls.has(generatedCode));
 
+      // create a new call
       calls.set(generatedCode, { caller: connection });
 
       // send to the caller the generated call code
-      sendMessage(connection, { type: "callCreated", callCode: generatedCode });
+      let toSend = { type: "callCreated", callCode: generatedCode };
+      sendMessage(connection, toSend);
+
       break;
     }
     // receiver
     case "searchCall": {
-      const callData = calls.get(data.callCode);
+      let callData = calls.get(data.callCode);
 
       if (callData != undefined) {
         // set the receiver of the calls
-        calls.get(data.callCode)["receiver"] = connection;
+        callData["receiver"] = connection;
 
         // advise the caller that someone want to partecipate
-        const caller = calls.get(data.callCode)["caller"];
+        let toSend = {
+          type: "callJoined",
+          callCode: data.callCode,
+        };
 
-        sendMessage(caller, { type: "callJoined", callCode: data.callCode });
+        sendMessage(callData["caller"], toSend);
       } else {
         // advise the receiver the call with that code is not found
-        sendMessage(connection, {
+        let toSend = {
           type: "callNotFound",
           callCode: data.callCode,
-        });
+        };
+
+        sendMessage(connection, toSend);
       }
       break;
     }
     // caller
     case "offer": {
       // get the receiver of the call
-      const receiver = calls.get(data.callCode)["receiver"];
+      let receiver = calls.get(data.callCode)["receiver"];
 
       // forward the offer
-      if (receiver !== undefined)
-        sendMessage(receiver, {
+      if (receiver !== undefined) {
+        let toSend = {
           type: "offer",
           callCode: data.callCode,
           offer: data.offer,
-        });
+        };
+
+        sendMessage(receiver, toSend);
+      }
 
       break;
     }
@@ -103,15 +113,18 @@ function messageHandler(connection, msg) {
     // receiver
     case "answer": {
       // get the caller of the call
-      const caller = calls.get(data.callCode)["caller"];
+      let caller = calls.get(data.callCode)["caller"];
 
       // forward the answer
-      if (caller !== undefined)
-        sendMessage(caller, {
+      if (caller !== undefined) {
+        let toSend = {
           type: "answer",
           callCode: data.callCode,
           answer: data.answer,
-        });
+        };
+
+        sendMessage(caller, toSend);
+      }
 
       break;
     }
@@ -119,13 +132,18 @@ function messageHandler(connection, msg) {
     // caller send its ICEs via this
     case "ICECaller": {
       let receiver = calls.get(data.callCode)["receiver"];
-      sendMessage(receiver, {
-        type: "ICECaller",
-        callCode: data.callCode,
-        candidate: data.candidate,
-        sdpMid: data.sdpMid,
-        sdpMLineIndex: data.sdpMLineIndex,
-      });
+
+      if (receiver != undefined) {
+        let toSend = {
+          type: "ICECaller",
+          callCode: data.callCode,
+          candidate: data.candidate,
+          sdpMid: data.sdpMid,
+          sdpMLineIndex: data.sdpMLineIndex,
+        };
+
+        sendMessage(receiver, toSend);
+      }
 
       break;
     }
@@ -134,13 +152,15 @@ function messageHandler(connection, msg) {
     case "ICEReceiver": {
       let caller = calls.get(data.callCode)["caller"];
 
-      sendMessage(caller, {
+      let toSend = {
         type: "ICEReceiver",
         callCode: data.callCode,
         candidate: data.candidate,
         sdpMid: data.sdpMid,
         sdpMLineIndex: data.sdpMLineIndex,
-      });
+      };
+
+      sendMessage(caller, toSend);
 
       break;
     }
