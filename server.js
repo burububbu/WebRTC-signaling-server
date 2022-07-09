@@ -7,15 +7,26 @@
 // }
 
 const calls = new Map();
+const port = 8080;
+
+// struct Message
+//     {
+//         string type;
+//         string callCode;
+//         string answer;
+//         string offer;
+//         string candidate;
+//         string sdpMid;
+//         int sdpMLineIndex;
+//     }
 
 function init() {
   const WebSocketServer = require("ws").Server;
 
-  const wss = new WebSocketServer({ port: 8080 });
-  console.log("Websocket server is running on port 8080");
+  const wss = new WebSocketServer({ port: port });
+  console.log(`Websocket server is running on port ${port}`);
 
-  // create a new connection
-  // for each connected user, the connection is a different object
+  // create a new connection for each connected user, each connection is a different object
   wss.on("connection", (connection) => connectionHandler(connection));
 }
 
@@ -29,27 +40,23 @@ function connectionHandler(connection) {
 }
 
 function messageHandler(connection, msg) {
-  // console.log(`Client sent to server ${msg}\n\n`);
   var data = {};
 
   // server accepts only JSON messages
   try {
     data = JSON.parse(msg);
   } catch (err) {
-    console.log(err);
-    console.log("Invalid JSON received from a client");
+    console.log(` Invalid JSON received from a client.\nERROR:\n${err}`);
   }
 
-  // switch based on the type of sent json
+  // switch based on the type of the received json
   switch (data.type) {
-    //caller
+    // caller
     case "startCall": {
-      // gen call codes until we found a never used code
       do {
         var generatedCode = generateCode();
       } while (calls.has(generatedCode));
 
-      // save caller connection with code generated key
       calls.set(generatedCode, { caller: connection });
 
       // send to the caller the generated call code
@@ -61,15 +68,18 @@ function messageHandler(connection, msg) {
       const callData = calls.get(data.callCode);
 
       if (callData != undefined) {
-        // set the receiver
+        // set the receiver of the calls
         calls.get(data.callCode)["receiver"] = connection;
 
         // advise the caller that someone want to partecipate
         const caller = calls.get(data.callCode)["caller"];
+
         sendMessage(caller, { type: "callJoined", callCode: data.callCode });
       } else {
+        // advise the receiver the call with that code is not found
         sendMessage(connection, {
           type: "callNotFound",
+          callCode: data.callCode,
         });
       }
       break;
@@ -150,12 +160,12 @@ function errorHandler() {
 }
 
 function sendMessage(conn, jsonMsg) {
+  console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
   conn.send(JSON.stringify(jsonMsg));
 }
 
 function generateCode() {
   return (Math.random() + 1).toString(36).substring(2, 7).toUpperCase();
-  // return tempcode;
 }
 
 init();
