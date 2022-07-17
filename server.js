@@ -7,6 +7,7 @@
 // }
 
 const calls = new Map();
+const port = 3000;
 
 // struct Message
 //     {
@@ -22,7 +23,8 @@ const calls = new Map();
 function init() {
   const WebSocketServer = require("ws").Server;
 
-  const wss = new WebSocketServer();
+  const wss = new WebSocketServer({ port: port });
+  console.log(`Websocket server is running on port ${port}`);
 
   // create a new connection for each connected user, each connection is a different object
   wss.on("connection", (connection) => connectionHandler(connection));
@@ -178,7 +180,7 @@ function errorHandler() {
 }
 
 function sendMessage(conn, jsonMsg) {
-  // console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
+  console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
   conn.send(JSON.stringify(jsonMsg));
 }
 
