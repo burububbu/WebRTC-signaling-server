@@ -69,17 +69,19 @@ function messageHandler(connection, msg) {
     case "searchCall": {
       let callData = calls.get(data.callCode);
 
-      if (callData != undefined) {
-        // set the receiver of the calls
-        callData["receiver"] = connection;
+      if (callData !== undefined) {
+        // set the receiver of the calls only if no receiver is already present
+        if (callData["receiver"] == undefined) {
+          callData["receiver"] = connection;
 
-        // advise the caller that someone want to partecipate
-        let toSend = {
-          type: "callJoined",
-          callCode: data.callCode,
-        };
+          // advise the caller that someone want to partecipate
+          let toSend = {
+            type: "callJoined",
+            callCode: data.callCode,
+          };
 
-        sendMessage(callData["caller"], toSend);
+          sendMessage(callData["caller"], toSend);
+        }
       } else {
         // advise the receiver the call with that code is not found
         let toSend = {
