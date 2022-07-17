@@ -7,7 +7,6 @@
 // }
 
 const calls = new Map();
-const port = 8080;
 
 // struct Message
 //     {
@@ -23,7 +22,7 @@ const port = 8080;
 function init() {
   const WebSocketServer = require("ws").Server;
 
-  const wss = new WebSocketServer({ port: port });
+  const wss = new WebSocketServer();
   console.log(`Websocket server is running on port ${port}`);
 
   // create a new connection for each connected user, each connection is a different object
