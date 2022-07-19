@@ -26,6 +26,17 @@ function init() {
   const wss = new WebSocketServer({ port: port });
   console.log(`Websocket server is running on port ${port}`);
 
+  // ping
+  setInterval(
+    () =>
+      wss.clients.forEach((client) =>
+        sendMessage(client, {
+          type: "ping",
+        })
+      ),
+    5000
+  );
+
   // create a new connection for each connected user, each connection is a different object
   wss.on("connection", (connection) => connectionHandler(connection));
 }
@@ -182,7 +193,7 @@ function errorHandler() {
 }
 
 function sendMessage(conn, jsonMsg) {
-  console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
+  if (jsonMsg.type != "ping") console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
   conn.send(JSON.stringify(jsonMsg));
 }
 
