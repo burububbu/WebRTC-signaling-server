@@ -1,23 +1,21 @@
-// Websocket mantains open channels.
-// Info via JSON messages
+// Websocket keeps the channels open
+// Messages are in JSON format.
 
-// calls maps callcode to {
-//                           caller: connection,
-//                           receiver: connection,
-// }
-
+// calls contains the calls that are active right now and maps
+// the CALL CODE to the dict {caller: connection, receiver: connection}
 const calls = new Map();
+
 const port = process.env.PORT || 3000;
 
-// struct Message
+// The format of sent and received message is
 //     {
-//         string type;
-//         string callCode;
-//         string answer;
-//         string offer;
-//         string candidate;
-//         string sdpMid;
-//         int sdpMLineIndex;
+//         type;
+//         callCode;
+//         answer;
+//         offer;
+//         candidate;
+//         sdpMid;
+//         sdpMLineIndex;
 //     }
 
 function init() {
@@ -26,7 +24,7 @@ function init() {
   const wss = new WebSocketServer({ port: port });
   console.log(`Websocket server is running on port ${port}`);
 
-  // ping
+  // set a ping interval in order to keep alive the connection
   setInterval(
     () =>
       wss.clients.forEach((client) =>
@@ -37,7 +35,7 @@ function init() {
     5000
   );
 
-  // create a new connection for each connected user, each connection is a different object
+  // when a new client connects to the server, add event listeners to the connection object
   wss.on("connection", (connection) => connectionHandler(connection));
 }
 
@@ -50,19 +48,20 @@ function connectionHandler(connection) {
   connection.on("error", errorHandler);
 }
 
+// parse messages received and do actions based on Type field
 function messageHandler(connection, msg) {
   var data = {};
 
-  // server accepts only JSON messages
+  // check that the message is in a valid JSON format
   try {
     data = JSON.parse(msg);
   } catch (err) {
     console.log(` Invalid JSON received from a client.\nERROR:\n${err}`);
   }
 
-  // switch based on the type of the received json
+  // switch based on the Type field of the received JSON
   switch (data.type) {
-    // caller
+    // msg sent by the CALLER in order to get a call CODE from the server
     case "startCall": {
       do var generatedCode = generateCode();
       while (calls.has(generatedCode));
@@ -70,13 +69,14 @@ function messageHandler(connection, msg) {
       // create a new call
       calls.set(generatedCode, { caller: connection });
 
-      // send to the caller the generated call code
+      // send to the CALLER the generated call CODE
       let toSend = { type: "callCreated", callCode: generatedCode };
       sendMessage(connection, toSend);
 
       break;
     }
-    // receiver
+
+    // msg sent by the RECEIVER in order to join a call with a specific CODE
     case "searchCall": {
       let callData = calls.get(data.callCode);
 
@@ -85,7 +85,7 @@ function messageHandler(connection, msg) {
         if (callData["receiver"] == undefined) {
           callData["receiver"] = connection;
 
-          // advise the caller that someone want to partecipate
+          // warn the caller that someone is joining the call
           let toSend = {
             type: "callJoined",
             callCode: data.callCode,
@@ -94,7 +94,7 @@ function messageHandler(connection, msg) {
           sendMessage(callData["caller"], toSend);
         }
       } else {
-        // advise the receiver the call with that code is not found
+        // advise the receiver the call with a specific code is not found
         let toSend = {
           type: "callNotFound",
           callCode: data.callCode,
@@ -104,12 +104,13 @@ function messageHandler(connection, msg) {
       }
       break;
     }
-    // caller
+    // msg sent by the CALLER to communicate its SDP offer to the RECEIVER.
+    // SDP is the standard describing a peer-to-peer connection.
     case "offer": {
-      // get the receiver of the call
+      // get the connection server-RECEIVER of the call
       let receiver = calls.get(data.callCode)["receiver"];
 
-      // forward the offer
+      // forward the offer to the receiver
       if (receiver !== undefined) {
         let toSend = {
           type: "offer",
@@ -123,12 +124,12 @@ function messageHandler(connection, msg) {
       break;
     }
 
-    // receiver
+    // msg sent by the RECEIVER to communicate its SDP answer to the CALLER.
     case "answer": {
-      // get the caller of the call
+      // get the server-caller connection of the call
       let caller = calls.get(data.callCode)["caller"];
 
-      // forward the answer
+      // forward the answer to the caller
       if (caller !== undefined) {
         let toSend = {
           type: "answer",
@@ -142,7 +143,7 @@ function messageHandler(connection, msg) {
       break;
     }
 
-    // caller send its ICEs via this
+    // msg sent by CALLER to communicate a ICE candidate to the RECEIVER
     case "ICECaller": {
       let receiver = calls.get(data.callCode)["receiver"];
 
@@ -161,7 +162,7 @@ function messageHandler(connection, msg) {
       break;
     }
 
-    // receiver send its ICEs via this
+    // msg sent by RECEIVER to communicate a ICE candidate to the CALLER
     case "ICEReceiver": {
       let caller = calls.get(data.callCode)["caller"];
 
@@ -185,7 +186,7 @@ function messageHandler(connection, msg) {
 }
 
 function closeHandler() {
-  console.log("connection closed");
+  console.log("Connection closed");
 }
 
 function errorHandler() {
@@ -193,11 +194,12 @@ function errorHandler() {
 }
 
 function sendMessage(conn, jsonMsg) {
-  if (jsonMsg.type != "ping") console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
+  // if (jsonMsg.type != "ping") console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
   conn.send(JSON.stringify(jsonMsg));
 }
 
 function generateCode() {
+  // generate a random call CODE
   return (Math.random() + 1).toString(36).substring(2, 7).toUpperCase();
 }
 
