@@ -194,7 +194,7 @@ function errorHandler() {
 }
 
 function sendMessage(conn, jsonMsg) {
-  // if (jsonMsg.type != "ping") console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
+  if (jsonMsg.type != "ping") console.log(`SENDING ${JSON.stringify(jsonMsg)}`);
   conn.send(JSON.stringify(jsonMsg));
 }
 
